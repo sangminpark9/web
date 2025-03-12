@@ -11,9 +11,9 @@ pipeline {
         ECR_REPOSITORY = '718866409497.dkr.ecr.ap-northeast-2.amazonaws.com/nginx-test'
         IMAGE_NAME = "${ECR_REPOSITORY}:${BUILD_TAG}"
 
-        // 배포 서버 환경 변수
+        // 배포 서버 환경 변수 (Private Subnet - web)
         DEPLOY_SERVER_USER = 'ec2-user@'
-        DEPLOY_SERVER_IP = '10.0.2.245'
+        DEPLOY_SERVER_IP = '10.0.1.134' // Private Subnet의 Web 서버
         DEPLOY_CREDENTIAL = 'jenkins-ssh'
         DEPLOY_AWS_KEY_PATH = '/home/ec2-user/jkdev.pem'
 
@@ -39,16 +39,19 @@ pipeline {
         stage('Push Image to ECR') {
             steps {
                 script {
-                    echo 'Skipping ECR login for now, as it is not set up yet.'
+                    sh '''
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY}
+                    docker push ${IMAGE_NAME}
+                    '''
                 }
             }
         }
 
-        stage('Deploy on EC2') {
+        stage('Deploy on Private Subnet Web Server') {
             steps {
                 script {
                     sshagent(credentials: [DEPLOY_CREDENTIAL]) {
-                        sh "ssh -i ${DEPLOY_AWS_KEY_PATH} -o 'StrictHostKeyChecking no' ${DEPLOY_SERVER_USER}${DEPLOY_SERVER_IP} \"docker pull ${IMAGE_NAME} && docker run -d -p 80:80 ${IMAGE_NAME}\""
+                        sh "ssh -i ${DEPLOY_AWS_KEY_PATH} -o 'StrictHostKeyChecking no' ${DEPLOY_SERVER_USER}${DEPLOY_SERVER_IP} \"aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY} && docker pull ${IMAGE_NAME} && docker run -d -p 80:80 ${IMAGE_NAME}\""
                     }
                 }
             }
