@@ -8,7 +8,6 @@ pipeline {
     environment {
         // ECR 환경 변수
         AWS_REGION = 'ap-northeast-2'
-        AWS_CREDENTIAL_ID = 'jenkins-ecr'
         ECR_REPOSITORY = '718866409497.dkr.ecr.ap-northeast-2.amazonaws.com/nginx-test'
         IMAGE_NAME = "${ECR_REPOSITORY}:${BUILD_TAG}"
 
@@ -19,21 +18,20 @@ pipeline {
         DEPLOY_AWS_KEY_PATH = '/home/ec2-user/jkdev.pem'
 
         // Git 환경 변수
-        GIT_REPOSITORY = 'https://github.com/your-repo/nginx-deploy.git'
-        GIT_CREDENTIAL_ID = 'your-git-credentials'
+        GIT_REPOSITORY = 'https://github.com/sangminpark9/web.git'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', credentialsId: GIT_CREDENTIAL_ID, url: GIT_REPOSITORY
+                git branch: 'main', url: GIT_REPOSITORY
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${IMAGE_NAME} web/"
+                    sh "docker build -t ${IMAGE_NAME} ."
                 }
             }
         }
@@ -41,8 +39,7 @@ pipeline {
         stage('Push Image to ECR') {
             steps {
                 script {
-                    sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY'
-                    sh "docker push ${IMAGE_NAME}"
+                    echo 'Skipping ECR login for now, as it is not set up yet.'
                 }
             }
         }
