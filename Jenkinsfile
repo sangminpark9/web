@@ -12,10 +12,9 @@ pipeline {
         IMAGE_NAME = "${ECR_REPOSITORY}:${BUILD_TAG}"
 
         // 배포 서버 환경 변수 (Private Subnet - web)
-        DEPLOY_SERVER_USER = 'ec2-user@'
+        DEPLOY_SERVER_USER = 'ec2-user'
         DEPLOY_SERVER_IP = '10.0.1.134' // Private Subnet의 Web 서버
-        DEPLOY_CREDENTIAL = 'jenkins-ssh'
-        DEPLOY_AWS_KEY_PATH = '/home/ec2-user/jkdev.pem'
+        DEPLOY_CREDENTIAL = 'jenkins-ssh' // Jenkins에 등록된 SSH 자격 증명 ID
 
         // Git 환경 변수
         GIT_REPOSITORY = 'https://github.com/sangminpark9/web.git'
@@ -51,7 +50,15 @@ pipeline {
             steps {
                 script {
                     sshagent(credentials: [DEPLOY_CREDENTIAL]) {
-                        sh "ssh -i ${DEPLOY_AWS_KEY_PATH} -o 'StrictHostKeyChecking no' ${DEPLOY_SERVER_USER}${DEPLOY_SERVER_IP} \"aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY} && docker pull ${IMAGE_NAME} && docker run -d -p 80:80 ${IMAGE_NAME}\""
+                        // StrictHostKeyChecking 옵션 추가
+                        sh """
+                        ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER}@${DEPLOY_SERVER_IP} '
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY} && 
+                            docker pull ${IMAGE_NAME} && 
+                            docker stop \$(docker ps -q --filter ancestor=${IMAGE_NAME} 2>/dev/null) 2>/dev/null || true && 
+                            docker run -d -p 80:80 --name nginx-app-\$(date +%s) ${IMAGE_NAME}
+                        '
+                        """
                     }
                 }
             }
@@ -67,6 +74,7 @@ pipeline {
         }
         always {
             cleanWs()
+            sh "docker rmi ${IMAGE_NAME} || true"
         }
     }
 }
