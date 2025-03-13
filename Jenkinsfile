@@ -6,9 +6,9 @@ pipeline {
     }
 
     environment {
-        // ECR 환경 변수
+        // ECR 환경 변수 - 올바른 계정 ID로 수정
         AWS_REGION = 'ap-northeast-2'
-        ECR_REPOSITORY = '718866409497.dkr.ecr.ap-northeast-2.amazonaws.com/nginx-test'
+        ECR_REPOSITORY = '476114142897.dkr.ecr.ap-northeast-2.amazonaws.com/nginx-test'
         IMAGE_NAME = "${ECR_REPOSITORY}:${BUILD_TAG}"
 
         // 배포 서버 환경 변수 (Private Subnet - web)
